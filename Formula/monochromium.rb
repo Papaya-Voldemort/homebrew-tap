@@ -6,8 +6,8 @@ class Monochromium < Formula
   license "MIT"
 
   livecheck do
-    url "https://github.com/Papaya-Voldemort/Monochromium/releases/latest"
-    regex(/^v?(\d+(?:\.\d+)+)$/i)
+    url "https://github.com/Papaya-Voldemort/Monochromium/releases.atom"
+    regex(/[vV]?(\d+(?:\.\d+)+)[._-]?/i)
   end
 
   def install
