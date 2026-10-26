@@ -2,7 +2,7 @@ name: Update monochromium formula
 
 on:
   schedule:
-    # Check crates.io for a new stable release every 6 hours.
+    # Check Monochromium's GitHub releases for a new version every 6 hours.
     - cron: "0 */6 * * *"
   workflow_dispatch:
 
@@ -15,25 +15,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Bump formula to latest crates.io version
+      - name: Bump formula to latest GitHub release
         env:
-          CRATE: monochromium
+          REPO: Papaya-Voldemort/Monochromium
           FORMULA: Formula/monochromium.rb
-          UA: "Papaya-Voldemort/homebrew-tap update workflow (GitHub Actions)"
         run: |
           set -euo pipefail
 
-          api="https://crates.io/api/v1/crates/$CRATE"
-          version=$(curl -fsSL -A "$UA" "$api" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin)["crate"]["max_stable_version"])')
-          checksum=$(curl -fsSL -A "$UA" "$api/$version" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"]["checksum"])')
-          current=$(sed -n 's|^.*monochromium-\([0-9][0-9.]*\)\.crate.*$|\1|p' "$FORMULA" | head -1)
+          api="https://api.github.com/repos/$REPO/releases/latest"
+          tag=$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" "$api" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["tag_name"])')
+          version=${tag#v}
+          asset="monochromium-v${version}-macos-universal"
+          download_url="https://github.com/$REPO/releases/download/$tag/$asset"
 
-          echo "Latest stable on crates.io: $version (formula has: $current)"
+          current=$(sed -n "s|^  url \".*/download/v\([0-9.]*\)/.*\"$|\1|p" "$FORMULA")
 
-          if [ -z "$version" ] || [ -z "$checksum" ] || [ -z "$current" ]; then
-            echo "Failed to resolve version, checksum, or current formula version" >&2
+          echo "Latest GitHub release: $version (formula has: $current)"
+
+          if [ -z "$tag" ] || [ -z "$version" ] || [ -z "$current" ]; then
+            echo "Failed to resolve release tag or current formula version" >&2
             exit 1
           fi
 
@@ -42,8 +43,18 @@ jobs:
             exit 0
           fi
 
-          sed -i "s|monochromium-[0-9.]*\.crate|monochromium-${version}.crate|" "$FORMULA"
-          sed -i "s|^  sha256 \".*\"|  sha256 \"${checksum}\"|" "$FORMULA"
+          checksum=$(curl -fsSL "https://github.com/$REPO/releases/download/$tag/SHA256SUMS" \
+            | awk -v a="$asset" '$2 ~ "/"a"$" {print $1}')
+
+          if [ -z "$checksum" ]; then
+            echo "No checksum for $asset in SHA256SUMS" >&2
+            exit 1
+          fi
+
+          echo "New version: $version (sha256 $checksum)"
+
+          sed -i "s|^  url \".*\"$|  url \"$download_url\"|" "$FORMULA"
+          sed -i "s|^  sha256 \".*\"$|  sha256 \"${checksum}\"|" "$FORMULA"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

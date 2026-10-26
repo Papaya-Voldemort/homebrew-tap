@@ -1,19 +1,17 @@
 class Monochromium < Formula
   desc "Fast, local-first CLI note-taking app for developers"
   homepage "https://github.com/Papaya-Voldemort/Monochromium"
-  url "https://static.crates.io/crates/monochromium/monochromium-0.6.0.crate"
-  sha256 "31d1baf931d0a69b9fe413869f43d640d52f8ab319cb241058fd7d23a02c8f6e"
+  url "https://github.com/Papaya-Voldemort/Monochromium/releases/download/v0.6.0/monochromium-v0.6.0-macos-universal"
+  sha256 "e2baae7e219275d3de2b1830e7f8368b1e778e1c7cc44ead1e00eb951413cc1b"
   license "MIT"
 
   livecheck do
-    url "https://crates.io/api/v1/crates/monochromium"
-    regex(/"max_stable_version":\s*"?(\d+(?:\.\d+)+)"?/i)
+    url "https://github.com/Papaya-Voldemort/Monochromium/releases/latest"
+    regex(/^v?(\d+(?:\.\d+)+)$/i)
   end
 
-  depends_on "rust" => :build
-
   def install
-    system "cargo", "install", *std_cargo_args
+    bin.install Dir["monochromium-*-macos-universal"].first => "mono"
   end
 
   test do
