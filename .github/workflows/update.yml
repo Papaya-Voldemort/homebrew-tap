@@ -1,0 +1,53 @@
+name: Update monochromium formula
+
+on:
+  schedule:
+    # Check crates.io for a new stable release every 6 hours.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bump formula to latest crates.io version
+        env:
+          CRATE: monochromium
+          FORMULA: Formula/monochromium.rb
+          UA: "Papaya-Voldemort/homebrew-tap update workflow (GitHub Actions)"
+        run: |
+          set -euo pipefail
+
+          api="https://crates.io/api/v1/crates/$CRATE"
+          version=$(curl -fsSL -A "$UA" "$api" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["crate"]["max_stable_version"])')
+          checksum=$(curl -fsSL -A "$UA" "$api/$version" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"]["checksum"])')
+          current=$(sed -n 's/^  version "\(.*\)"$/\1/p' "$FORMULA")
+
+          echo "Latest stable on crates.io: $version (formula has: $current)"
+
+          if [ -z "$version" ] || [ -z "$checksum" ] || [ -z "$current" ]; then
+            echo "Failed to resolve version, checksum, or current formula version" >&2
+            exit 1
+          fi
+
+          if [ "$version" = "$current" ]; then
+            echo "Formula is up to date; nothing to do."
+            exit 0
+          fi
+
+          sed -i "s|monochromium-[0-9.]*\.crate|monochromium-${version}.crate|" "$FORMULA"
+          sed -i "s|^  version \".*\"|  version \"${version}\"|" "$FORMULA"
+          sed -i "s|^  sha256 \".*\"|  sha256 \"${checksum}\"|" "$FORMULA"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$FORMULA"
+          git commit -m "monochromium $version"
+          git push
