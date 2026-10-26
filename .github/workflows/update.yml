@@ -28,7 +28,7 @@ jobs:
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["crate"]["max_stable_version"])')
           checksum=$(curl -fsSL -A "$UA" "$api/$version" \
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"]["checksum"])')
-          current=$(sed -n 's/^  version "\(.*\)"$/\1/p' "$FORMULA")
+          current=$(sed -n 's|^.*monochromium-\([0-9][0-9.]*\)\.crate.*$|\1|p' "$FORMULA" | head -1)
 
           echo "Latest stable on crates.io: $version (formula has: $current)"
 
@@ -43,7 +43,6 @@ jobs:
           fi
 
           sed -i "s|monochromium-[0-9.]*\.crate|monochromium-${version}.crate|" "$FORMULA"
-          sed -i "s|^  version \".*\"|  version \"${version}\"|" "$FORMULA"
           sed -i "s|^  sha256 \".*\"|  sha256 \"${checksum}\"|" "$FORMULA"
 
           git config user.name "github-actions[bot]"
